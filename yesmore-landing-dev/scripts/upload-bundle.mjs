@@ -8,7 +8,8 @@ import { TextDecoder } from 'node:util';
 
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const MAX_REMOTE_HTML_BYTES = 4 * 1024 * 1024;
-const UPLOAD_TEMPLATE = 'https://yesmoreco.com/api/v1/landing-bundles/{landingPageId}';
+const PRODUCTION_UPLOAD_TEMPLATE = 'https://yesmore.co/api/v1/landing-bundles/{landingPageId}';
+const STAGING_UPLOAD_TEMPLATE = 'https://yesmoreco.com/api/v1/landing-bundles/{landingPageId}';
 const TOKEN_PATTERN = /^ymb_[A-Za-z0-9_-]+$/;
 const ACCESS_TOKEN_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const LANDING_ID_PATTERN = /^(?=.{1,63}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
@@ -420,11 +421,14 @@ function openBrowser(url) {
   }
 }
 
-if (process.argv.length !== 5) {
-  fail('usage: upload-bundle.mjs <landing-page-id> <title> <path-to-index.html>');
+const uploadArgs = process.argv.slice(2);
+const useStaging = uploadArgs[0] === '--staging';
+if (useStaging) uploadArgs.shift();
+if (uploadArgs.length !== 3) {
+  fail('usage: upload-bundle.mjs [--staging] <landing-page-id> <title> <path-to-index.html>');
 }
 
-const [, , landingPageId, title, htmlPath] = process.argv;
+const [landingPageId, title, htmlPath] = uploadArgs;
 if (!LANDING_ID_PATTERN.test(landingPageId) || RESERVED_IDS.has(landingPageId)) {
   fail('landing page ID must be 1–63 lowercase letters, numbers, or hyphens, start and end alphanumerically, and not be reserved.');
 }
@@ -440,7 +444,8 @@ try {
   fail(error instanceof Error ? error.message : 'could not validate index.html.');
 }
 
-const uploadUrl = new URL(UPLOAD_TEMPLATE.replace('{landingPageId}', encodeURIComponent(landingPageId)));
+const uploadTemplate = useStaging ? STAGING_UPLOAD_TEMPLATE : PRODUCTION_UPLOAD_TEMPLATE;
+const uploadUrl = new URL(uploadTemplate.replace('{landingPageId}', encodeURIComponent(landingPageId)));
 
 const ensureScript = fileURLToPath(new URL('./ensure-credential.sh', import.meta.url));
 const ensured = spawnSync(ensureScript, [], { env: process.env, stdio: 'inherit' });
@@ -473,18 +478,19 @@ if (!TOKEN_PATTERN.test(token)) {
 }
 
 const authorization = `Bearer ${token}`;
-const uploadAccessToken = cloudflareAccessToken(uploadUrl.origin);
+const uploadAccessToken = useStaging ? cloudflareAccessToken(uploadUrl.origin) : null;
+const uploadHeaders = {
+  Authorization: authorization,
+  'Content-Type': 'text/html',
+  'X-Landing-Bundle-Title': title,
+};
+if (uploadAccessToken) uploadHeaders['cf-access-token'] = uploadAccessToken;
 
 let uploadResponse;
 try {
   uploadResponse = await fetch(uploadUrl, {
     method: 'POST',
-    headers: {
-      Authorization: authorization,
-      'cf-access-token': uploadAccessToken,
-      'Content-Type': 'text/html',
-      'X-Landing-Bundle-Title': title,
-    },
+    headers: uploadHeaders,
     body: html,
     redirect: 'manual',
   });
@@ -532,7 +538,7 @@ try {
 let previewResponse;
 try {
   const previewHeaders = { Authorization: authorization };
-  if (previewUrl.origin === uploadUrl.origin) {
+  if (uploadAccessToken && previewUrl.origin === uploadUrl.origin) {
     previewHeaders['cf-access-token'] = uploadAccessToken;
   }
   previewResponse = await fetch(previewUrl, {

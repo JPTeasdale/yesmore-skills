@@ -10,10 +10,10 @@ Handle four explicit actions: `configure`, `build`, `preview`, and `upload`. Whe
 ## Protect credentials and deployment authority
 
 - Never ask for, accept, reveal, print, log, or copy a credential in chat, command arguments, source control, project files, shell history, tickets, reports, or this skill folder.
-- Require an API key with both `landing_bundles:read:all` and `landing_bundles:write:all`. Direct the user to create or revoke keys in **Admin → API Keys**. Never try to assign permissions from this skill.
+- Require an API key with both `landing_bundles:read:all` and `landing_bundles:write:all`. Direct the user to create or revoke production keys at `https://yesmore.co/admin/api-keys`, or staging keys at `https://yesmoreco.com/admin/api-keys` only when staging is explicitly specified. Never try to assign permissions from this skill.
 - Resolve the credential from inherited `YESMORE_LANDING_BUNDLE_TOKEN` first, then the raw `${XDG_CONFIG_HOME:-$HOME/.config}/yesmore/landing-dev/credential` file. Treat a present malformed environment value as a hard error; never fall back to the file.
 - Run credential operations only through `scripts/ensure-credential.sh`. Never accept a credential as a command-line argument.
-- Authenticate to staging's Cloudflare Access gate through the installed `cloudflared` CLI. Keep its short-lived user token in memory, send it only as `cf-access-token` to the exact protected YesMore origin, and never print or persist it.
+- Authenticate only explicit staging uploads through the installed `cloudflared` CLI. Keep the short-lived Cloudflare Access token in memory, send it only as `cf-access-token` to the exact `https://yesmoreco.com` staging origin, and never print or persist it.
 - Treat upload as a separate, explicit action. Build or preview permission never authorizes upload.
 - Never activate a bundle or assign a segment. Those remain separate admin-only actions.
 
@@ -54,13 +54,21 @@ Inspect at 390×844 and 1440×900. Exercise every marked sign-up button and the 
 
 ## Upload
 
-Proceed only after explicit upload authorization. Run:
+Proceed only after explicit upload authorization. Default to production at `yesmore.co`:
 
 ```sh
 node "<skill-directory>/scripts/upload-bundle.mjs" "<landing-page-id>" "<title>" "<path-to-index.html>"
 ```
 
-The script revalidates the credential source, landing ID, document, and declarative sign-up contract; obtains a short-lived Cloudflare Access user token in memory; posts raw HTML to `https://yesmoreco.com/api/v1/landing-bundles/{landingPageId}` without following redirects; validates the inactive immutable bundle response; enforces the YesMore preview-origin allowlist; performs API-key remote preview verification; and opens the exact uploaded version at `https://yesmoreco.com/admin/landing-bundles/{landingPageId}/preview/{bundle.id}` in the user's authenticated browser.
+Only when the user explicitly specifies staging, pass `--staging` to target `yesmoreco.com`:
+
+```sh
+node "<skill-directory>/scripts/upload-bundle.mjs" --staging "<landing-page-id>" "<title>" "<path-to-index.html>"
+```
+
+Never infer staging from the current project, browser, prior upload, or development context. Without the explicit staging request and flag, always use production `yesmore.co`.
+
+The script revalidates the credential source, landing ID, document, and declarative sign-up contract; posts raw HTML to the selected YesMore origin without following redirects; validates the inactive immutable bundle response; enforces the YesMore preview-origin allowlist; performs API-key remote preview verification; and opens the exact uploaded version at `/admin/landing-bundles/{landingPageId}/preview/{bundle.id}` on that same selected origin. Explicit staging additionally obtains an in-memory Cloudflare Access token for `yesmoreco.com`.
 
 Require the API-key remote preview to return a complete HTML document with the trusted injected sign-up runtime. When the uploaded source includes a sign-up trigger, require that trigger in the remote document too. Treat the API response's bearer-protected `previewUrl` as verification-only; never open it in a browser or add the API key to a URL. Open and report only the version-specific authenticated admin preview. Never persist the credential or authenticated response body.
 
