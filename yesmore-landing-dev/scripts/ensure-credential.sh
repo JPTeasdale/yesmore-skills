@@ -28,6 +28,7 @@ script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd) || exit 1
 store_script=$script_dir/store-credential.sh
 success_marker=
 failure_marker=
+terminal_window_id=
 
 valid_token() {
   case "$1" in
@@ -119,6 +120,27 @@ cleanup_markers() {
   rm -f "$success_marker" "$failure_marker"
   exit "$cleanup_status"
 }
+
+close_launched_terminal() {
+  [ -n "$terminal_window_id" ] || return 0
+  osascript - "$terminal_window_id" >/dev/null 2>&1 <<'APPLESCRIPT' || true
+on run argv
+  set targetWindowId to (item 1 of argv) as integer
+  tell application "Terminal"
+    if exists window id targetWindowId then
+      set targetWindow to window id targetWindowId
+      repeat 20 times
+        if not busy of selected tab of targetWindow then exit repeat
+        delay 0.1
+      end repeat
+      if not busy of selected tab of targetWindow then close targetWindow
+    end if
+  end tell
+end run
+APPLESCRIPT
+  terminal_window_id=
+}
+
 trap 'cleanup_markers $?' 0
 trap 'exit 130' HUP INT TERM
 
@@ -126,7 +148,7 @@ launched=0
 platform=$(uname -s 2>/dev/null || printf '%s' unknown)
 
 if [ "$platform" = Darwin ] && command -v osascript >/dev/null 2>&1; then
-  if osascript - "$store_script" "$nonce" "$config_root" >/dev/null <<'APPLESCRIPT'
+  if terminal_window_output=$(osascript - "$store_script" "$nonce" "$config_root" <<'APPLESCRIPT'
 on run argv
   set storePath to item 1 of argv
   set nonceValue to item 2 of argv
@@ -135,11 +157,18 @@ on run argv
   tell application "Terminal"
     activate
     do script launchCommand
+    return id of front window
   end tell
 end run
 APPLESCRIPT
+  )
   then
     launched=1
+    case "$terminal_window_output" in
+      ''|*[!0-9]*) terminal_window_id= ;;
+      *) terminal_window_id=$terminal_window_output ;;
+    esac
+    terminal_window_output=
   fi
 fi
 
@@ -180,6 +209,7 @@ while [ "$elapsed" -lt 300 ]; do
       printf '%s\n' 'Credential configuration did not produce a newly valid protected file.' >&2
       exit 1
     fi
+    close_launched_terminal
     exit 0
   fi
 

@@ -78,7 +78,7 @@ terminal_state=$(stty -g < /dev/tty 2>/dev/null) || {
 
 stty -echo < /dev/tty || exit 1
 echo_disabled=1
-printf '%s' 'Enter the YesMore landing bundle credential: ' > /dev/tty
+printf '%s' 'Enter the YesMore API Key: ' > /dev/tty
 
 credential_value=
 if ! IFS= read -r credential_value < /dev/tty; then
@@ -116,5 +116,5 @@ chmod 600 "$marker_temp" || exit 1
 mv "$marker_temp" "$success_marker" || exit 1
 
 completed=1
-printf '%s\n' 'YesMore credential stored securely.'
+printf '%s\n' 'YesMore API Key stored securely.'
 exit 0
