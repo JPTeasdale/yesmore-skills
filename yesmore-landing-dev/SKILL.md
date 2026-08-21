@@ -13,6 +13,7 @@ Handle four explicit actions: `configure`, `build`, `preview`, and `upload`. Whe
 - Require an API key with both `landing_bundles:read:all` and `landing_bundles:write:all`. Direct the user to create or revoke keys in **Admin → API Keys**. Never try to assign permissions from this skill.
 - Resolve the credential from inherited `YESMORE_LANDING_BUNDLE_TOKEN` first, then the raw `${XDG_CONFIG_HOME:-$HOME/.config}/yesmore/landing-dev/credential` file. Treat a present malformed environment value as a hard error; never fall back to the file.
 - Run credential operations only through `scripts/ensure-credential.sh`. Never accept a credential as a command-line argument.
+- Authenticate to staging's Cloudflare Access gate through the installed `cloudflared` CLI. Keep its short-lived user token in memory, send it only as `cf-access-token` to the exact protected YesMore origin, and never print or persist it.
 - Treat upload as a separate, explicit action. Build or preview permission never authorizes upload.
 - Never activate a bundle or assign a segment. Those remain separate admin-only actions.
 
@@ -59,7 +60,7 @@ Proceed only after explicit upload authorization. Run:
 node "<skill-directory>/scripts/upload-bundle.mjs" "<landing-page-id>" "<title>" "<path-to-index.html>"
 ```
 
-The script revalidates the credential source, landing ID, document, and declarative sign-up contract; posts raw HTML to `https://yesmore.co/api/v1/landing-bundles/{landingPageId}` without following redirects; validates the inactive immutable bundle response; enforces the YesMore preview-origin allowlist; and performs authenticated remote preview verification.
+The script revalidates the credential source, landing ID, document, and declarative sign-up contract; obtains a short-lived Cloudflare Access user token in memory; posts raw HTML to `https://yesmoreco.com/api/v1/landing-bundles/{landingPageId}` without following redirects; validates the inactive immutable bundle response; enforces the YesMore preview-origin allowlist; and performs authenticated remote preview verification.
 
 Require the authenticated remote preview to return a complete HTML document with the trusted injected sign-up runtime. When the uploaded source includes a sign-up trigger, require that trigger in the remote document too. Never persist the credential or authenticated response body.
 

@@ -8,14 +8,36 @@ import { TextDecoder } from 'node:util';
 
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const MAX_REMOTE_HTML_BYTES = 4 * 1024 * 1024;
-const UPLOAD_TEMPLATE = 'https://yesmore.co/api/v1/landing-bundles/{landingPageId}';
+const UPLOAD_TEMPLATE = 'https://yesmoreco.com/api/v1/landing-bundles/{landingPageId}';
 const TOKEN_PATTERN = /^ymb_[A-Za-z0-9_-]+$/;
+const ACCESS_TOKEN_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const LANDING_ID_PATTERN = /^(?=.{1,63}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const RESERVED_IDS = new Set(['default', 'next', 'staging', 'www']);
 
 function fail(message) {
   process.stderr.write(`Upload failed: ${message}\n`);
   process.exit(1);
+}
+
+function cloudflareAccessToken(origin) {
+  const result = spawnSync('cloudflared', ['access', 'token', `-app=${origin}`], {
+    encoding: 'utf8',
+    env: process.env,
+    maxBuffer: 64 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 5 * 60 * 1000,
+  });
+  if (result.error?.code === 'ENOENT') {
+    fail('staging is protected by Cloudflare Access and cloudflared is not installed.');
+  }
+  if (result.error || result.status !== 0) {
+    fail('Cloudflare Access authentication did not complete successfully.');
+  }
+  const accessToken = (result.stdout || '').trim();
+  if (!ACCESS_TOKEN_PATTERN.test(accessToken)) {
+    fail('Cloudflare Access authentication returned an invalid token.');
+  }
+  return accessToken;
 }
 
 function decodeAttributeEntities(value) {
@@ -426,6 +448,7 @@ if (!TOKEN_PATTERN.test(token)) {
 }
 
 const authorization = `Bearer ${token}`;
+const uploadAccessToken = cloudflareAccessToken(uploadUrl.origin);
 
 let uploadResponse;
 try {
@@ -433,6 +456,7 @@ try {
     method: 'POST',
     headers: {
       Authorization: authorization,
+      'cf-access-token': uploadAccessToken,
       'Content-Type': 'text/html',
       'X-Landing-Bundle-Title': title,
     },
@@ -482,8 +506,12 @@ try {
 
 let previewResponse;
 try {
+  const previewHeaders = { Authorization: authorization };
+  if (previewUrl.origin === uploadUrl.origin) {
+    previewHeaders['cf-access-token'] = uploadAccessToken;
+  }
   previewResponse = await fetch(previewUrl, {
-    headers: { Authorization: authorization },
+    headers: previewHeaders,
     redirect: 'manual',
   });
 } catch {
