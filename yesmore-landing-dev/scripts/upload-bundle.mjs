@@ -395,6 +395,31 @@ function credentialFilePath() {
   fail('no user configuration directory is available.');
 }
 
+function authenticatedAdminPreviewUrl(uploadUrl, landingPageId, bundleId) {
+  return new URL(
+    `/admin/landing-bundles/${encodeURIComponent(landingPageId)}/preview/${bundleId}`,
+    uploadUrl.origin,
+  );
+}
+
+function openBrowser(url) {
+  if (process.env.YESMORE_UPLOAD_NO_OPEN === '1') return;
+  const command = process.platform === 'darwin'
+    ? 'open'
+    : process.platform === 'win32'
+      ? 'cmd'
+      : 'xdg-open';
+  const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+  const result = spawnSync(command, args, {
+    env: process.env,
+    stdio: 'ignore',
+    timeout: 10_000,
+  });
+  if (result.error || result.status !== 0) {
+    process.stderr.write(`Upload succeeded; open the authenticated preview manually: ${url}\n`);
+  }
+}
+
 if (process.argv.length !== 5) {
   fail('usage: upload-bundle.mjs <landing-page-id> <title> <path-to-index.html>');
 }
@@ -563,11 +588,17 @@ if (signUpTriggerCount > 0) {
   }
 }
 
+const authenticatedPreviewUrl = authenticatedAdminPreviewUrl(
+  uploadUrl,
+  landingPageId,
+  bundle.id,
+);
 process.stdout.write([
   'YesMore landing bundle uploaded and remotely verified.',
   `Landing page ID: ${landingPageId}`,
   `Version ID: ${bundle.id}`,
   `Checksum: ${bundle.checksum}`,
-  `Preview URL: ${previewUrl.href}`,
-  'Remote preview verification: passed',
+  `Authenticated preview URL: ${authenticatedPreviewUrl.href}`,
+  'API-key remote preview verification: passed',
 ].join('\n') + '\n');
+openBrowser(authenticatedPreviewUrl.href);

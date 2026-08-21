@@ -60,12 +60,12 @@ Proceed only after explicit upload authorization. Run:
 node "<skill-directory>/scripts/upload-bundle.mjs" "<landing-page-id>" "<title>" "<path-to-index.html>"
 ```
 
-The script revalidates the credential source, landing ID, document, and declarative sign-up contract; obtains a short-lived Cloudflare Access user token in memory; posts raw HTML to `https://yesmoreco.com/api/v1/landing-bundles/{landingPageId}` without following redirects; validates the inactive immutable bundle response; enforces the YesMore preview-origin allowlist; and performs authenticated remote preview verification.
+The script revalidates the credential source, landing ID, document, and declarative sign-up contract; obtains a short-lived Cloudflare Access user token in memory; posts raw HTML to `https://yesmoreco.com/api/v1/landing-bundles/{landingPageId}` without following redirects; validates the inactive immutable bundle response; enforces the YesMore preview-origin allowlist; performs API-key remote preview verification; and opens the exact uploaded version at `https://yesmoreco.com/admin/landing-bundles/{landingPageId}/preview/{bundle.id}` in the user's authenticated browser.
 
-Require the authenticated remote preview to return a complete HTML document with the trusted injected sign-up runtime. When the uploaded source includes a sign-up trigger, require that trigger in the remote document too. Never persist the credential or authenticated response body.
+Require the API-key remote preview to return a complete HTML document with the trusted injected sign-up runtime. When the uploaded source includes a sign-up trigger, require that trigger in the remote document too. Treat the API response's bearer-protected `previewUrl` as verification-only; never open it in a browser or add the API key to a URL. Open and report only the version-specific authenticated admin preview. Never persist the credential or authenticated response body.
 
 On HTTP 401, direct environment-backed users to update or remove the host encrypted secret. Direct file-backed users to run `$yesmore-landing-dev configure`. Never retry by requesting the token in conversation.
 
-Report only the requested landing page ID, immutable version ID (`bundle.id`), checksum, safe `previewUrl`, and authenticated verification result. Never report the credential.
+Report only the requested landing page ID, immutable version ID (`bundle.id`), checksum, version-specific authenticated admin preview URL, and API-key verification result. Never report the credential.
 
-Prefer: build → local preview → visual/accessibility checks → explicit upload → authenticated remote preview verification.
+Prefer: build → local preview → visual/accessibility checks → explicit upload → API-key remote verification → authenticated version preview.
