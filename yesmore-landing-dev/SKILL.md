@@ -17,6 +17,14 @@ Handle four explicit actions: `configure`, `build`, `preview`, and `upload`. Whe
 - Treat upload as a separate, explicit action. Build or preview permission never authorizes upload.
 - Never activate a bundle or assign a segment. Those remain separate admin-only actions.
 
+## Use the current YesMore URL contract
+
+- Treat `https://yesmore.co` as the production application origin and `https://yesmoreco.com` as staging.
+- Use `/api/p/*` for every publicly allowlisted YesMore API route. Landing bundles upload through `/api/p/landing-bundles/{landingPageId}`, and the trusted sign-in surface is `/api/p/auth/landing-surface`. Never use the legacy `/api/v1/landing-bundles/*` or `/api/auth/landing-*` paths.
+- Production landing pages are served from `{landingPageId}.yesmore.co`; staging landing pages are served from `{landingPageId}.yesmoreco.com`.
+- Successful sign-in continues to `/account` on the configured application origin. Do not use the removed `/me` or `/dashboard` routes.
+- When a YesMore media upload response is provided, use its returned URLs unchanged: `/m/{slug}` is the rich-preview HTML page, and `/m/{slug}/{filename}` is the directly rendered file. Never reconstruct legacy `/d/*` or `/media/*` URLs.
+
 ## Configure
 
 Run:
@@ -36,7 +44,7 @@ Use the nonce-based visible terminal prompt when the protected file is the activ
 5. Produce a polished, responsive, keyboard-accessible interface.
 6. Design for an opaque sandboxed origin. Do not use cookies, local/session storage, frames, workers, objects, `<base>`, custom form actions/targets, custom sessions, or custom redirects.
 7. Do not use `fetch`, XHR, EventSource, WebSocket, or other direct network calls. The trusted renderer owns authentication and network activity.
-8. To offer sign-up, render a normal accessible `<button type="button" data-yesmore-action="sign-up">`. Do not build phone or OTP fields, call `window.YesMoreAuth`, create a session, or redirect from bundle code. The trusted renderer supplies the desktop modal/mobile drawer and finishes successful validation at `/me` on the configured application origin.
+8. To offer sign-up, render a normal accessible `<button type="button" data-yesmore-action="sign-up">`. Do not build phone or OTP fields, call `window.YesMoreAuth`, create a session, or redirect from bundle code. The trusted renderer supplies the desktop modal/mobile drawer and finishes successful validation at `/account` on the configured application origin.
 9. Theme only the trusted authentication surface's colors, when needed, by defining valid accessible colors on `:root` for `--yesmore-auth-surface`, `--yesmore-auth-text`, `--yesmore-auth-muted`, `--yesmore-auth-border`, `--yesmore-auth-accent`, and `--yesmore-auth-accent-text`. These variables do not control layout, typography, spacing, or behavior.
 10. Validate with the preview script before calling the build complete.
 

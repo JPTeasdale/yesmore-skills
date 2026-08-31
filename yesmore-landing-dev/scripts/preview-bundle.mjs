@@ -439,7 +439,7 @@ const injectedRuntime = String.raw`<script>
         ? 'Enter your phone number and we will simulate a secure sign-in code.'
         : state.step === 'code'
           ? 'Enter any 4–10 digit code. This local preview sends nothing.'
-          : 'Mock verification passed. Production would continue to /me on the configured application origin.',
+          : 'Mock verification passed. Production would continue to /account on the configured application origin.',
     ));
 
     if (state.step === 'success') {
