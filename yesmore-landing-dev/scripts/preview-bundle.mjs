@@ -279,7 +279,7 @@ function validateDocument(buffer) {
   if (
     scriptCode.includes('button[type="button"][data-yesmore-action="sign-up"]')
     && scriptCode.includes('data-yesmore-auth-root')
-    && scriptCode.includes('/api/auth/landing-surface')
+    && scriptCode.includes('/api/p/auth/landing-surface')
   ) {
     throw new Error('Hosted bundles cannot include trusted runtime marker signatures.');
   }

@@ -8,8 +8,8 @@ import { TextDecoder } from 'node:util';
 
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const MAX_REMOTE_HTML_BYTES = 4 * 1024 * 1024;
-const PRODUCTION_UPLOAD_TEMPLATE = 'https://yesmore.co/api/v1/landing-bundles/{landingPageId}';
-const STAGING_UPLOAD_TEMPLATE = 'https://yesmoreco.com/api/v1/landing-bundles/{landingPageId}';
+const PRODUCTION_UPLOAD_TEMPLATE = 'https://yesmore.co/api/p/landing-bundles/{landingPageId}';
+const STAGING_UPLOAD_TEMPLATE = 'https://yesmoreco.com/api/p/landing-bundles/{landingPageId}';
 const TOKEN_PATTERN = /^ymb_[A-Za-z0-9_-]+$/;
 const ACCESS_TOKEN_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const LANDING_ID_PATTERN = /^(?=.{1,63}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
@@ -275,7 +275,7 @@ function countSignUpTriggers(startTags) {
 function containsTrustedRuntime(scriptCode) {
   return scriptCode.includes('button[type="button"][data-yesmore-action="sign-up"]')
     && scriptCode.includes('data-yesmore-auth-root')
-    && scriptCode.includes('/api/auth/landing-surface');
+    && scriptCode.includes('/api/p/auth/landing-surface');
 }
 
 function validateHostedContract(buffer) {
